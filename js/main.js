@@ -78,7 +78,7 @@ var ui = {
         values: [["5mV", 0.001],["10mV", 0.002],["25mV", 0.005], ["50mv", 0.01], ["100mV", 0.02], ["250mV", 0.05], ["500mV", 0.1], ["1V", 0.2],["2V", 0.4],["5V", 1],["10V", 2]]
     },
     horizOffset: {
-        title: "Generator Horizontal Offset",
+        title: "Horizontal Offset",
         value: 0,
         range:[-1000,1000],
         resolution: 1,
@@ -169,7 +169,7 @@ function addLine(coords, color=colors.grey30) {
     var line = new WebglPlotBundle.WebglLine(color, 2);
     line.xy = new Float32Array(coords);
     line.intensity = 10;
-    wglp.addLine(line);
+    wglp.addAuxLine(line);
 }
 
 addLine.fromCanvas = function (from, to, color) {
@@ -230,6 +230,11 @@ function createGrid(){
     addLine([-1, 0., 1, 0], colors.grey60);
 }
 
+
+// Create Auxlines 
+for (var i=0; i<AuxLines.length; i++) {
+    wglp.addAuxLine(new WebglPlotBundle.WebglLine(colors.white, 2));
+}
 createGrid();
 
 
@@ -370,6 +375,26 @@ function update(el) {
     } else if (el == 'inputType2' && ui.inputType2.value != 1) {
         streaming[1] = false;
         end_animation = true;
+    } else if (el == 'freeze') {
+        if (ui.freeze.value === true) {
+            line.freeze = {
+                gain: ui.gain.value,
+                v_offset: ui.vertOffset.value,
+                h_offset: ui.horizOffset.value
+            };
+        } else {
+            delete line.freeze;
+        }
+    } else if (el == 'freeze2') {
+        if (ui.freeze2.value === true) {
+            line2.freeze = {
+                gain: ui.gain2.value,
+                v_offset: ui.vertOffset2.value,
+                h_offset: ui.horizOffset.value
+            };
+        } else {
+            delete line2.freeze;
+        }
     }
 
     if (el == 'inputType') {
@@ -435,6 +460,69 @@ function update(el) {
     }
 }
 
+const freeze_interface = [
+    {
+        gain: 'gain',
+        v_offset: 'vertOffset',
+        h_offset: 'horizOffset'
+    },
+    {
+        gain: 'gain',
+        v_offset: 'vertOffset',
+        h_offset: 'horizOffset'
+    }
+];
+function IsFreezeUpdated(channel) {
+    if (!wglp) return false;
+    if (channel >= wglp.linesData.length) return false;
+    var _line = wglp.linesData[channel];
+    if (!_line.freeze) return false;
+    console.assert(channel < freeze_interface.length);
+
+    for (var key in _line.freeze) {
+        if (key in freeze_interface[channel]) {
+            const ui_key = freeze_interface[channel][key];
+            if (ui[ui_key].value !== _line.freeze[key])
+                return true;
+        }
+    }
+    return false;
+}
+
+const inputType_key = ['inputType', 'inputType2'];
+function updateFreeze(channel) {
+    if (!wglp) return;
+    if (channel >= wglp.linesData.length) return;
+    var _line = wglp.linesData[channel];
+    if (!_line.freeze) return;
+    console.assert(channel < inputType_key.length);
+    if (ui[inputType_key[channel]].value != 1) return;
+    if (!IsFreezeUpdated(channel)) return;
+
+    // Update value from ui
+    var new_freeze = {};
+    for (var key in _line.freeze) {
+        new_freeze[key] = _line.freeze[key];
+        if (key in freeze_interface[channel]) {
+            const ui_key = freeze_interface[channel][key];
+            new_freeze[key] = ui[ui_key].value;
+        }
+    }
+    // Replace new points in both X and Y
+    for (var i=0; i<_line.numPoints; i++) {
+        var y = mapRange([-1, 1], [0, canvas.height], _line.getY(i));
+        y += new_freeze.v_offset - _line.freeze.v_offset;
+        y *= new_freeze.gain / _line.freeze.gain;
+        y = mapRange.ToWebGL.y(y);
+        var x = mapRange([-1, 1], [0, canvas.width], _line.getX(i));
+        x += new_freeze.h_offset - _line.freeze.h_offset;
+        x = mapRange.ToWebGL.x(x);
+        _line.setX(i, x);
+        _line.setY(i, y);
+    }
+    _line.freeze = new_freeze;
+}
+
 function printStats(data) {
     var mean = data.reduce(function(a,x){return a+x;}) / data.length;
     var variance = data.reduce(function(a,x){return a+Math.pow(x-mean, 2)}) / data.length; 
@@ -446,7 +534,6 @@ function printStats(data) {
     );
 }
 
-var prev = {}
 function drawData(){
     // full_samples is the number of samples to fill full width
     // line.numPoints is the number of pixels filled for full width
@@ -513,6 +600,7 @@ function drawData(){
         }
         generator_refresh = false;
     }
+    updateFreeze(0);
     wglp.update();
 }
 
@@ -671,10 +759,6 @@ line2.arrangeX();
 line2.visible = false;
 wglp.addLine(line2);
 
-// Create Auxlines 
-for (var i=0; i<AuxLines.length; i++) {
-    wglp.addAuxLine(new WebglPlotBundle.WebglLine(colors.white, 2));
-}
 wglp.update();
 
 animate();
