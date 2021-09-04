@@ -1,0 +1,158 @@
+<!doctype html>
+<html class="no-js" lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>CV19 Oscilloscope</title>
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta property="og:title" content="">
+  <meta property="og:type" content="">
+  <meta property="og:url" content="">
+  <meta property="og:image" content="">
+
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="apple-touch-icon" href="icon.png">
+  <!-- Place favicon.ico in the root directory -->
+
+  <link rel="stylesheet" href="css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/nouislider.min.css">
+  <link rel="stylesheet" href="css/main.css">
+
+  <meta name="theme-color" content="#fafafa">
+</head>
+
+<body class="bg-dark position-relative">
+  <div id="app">
+    <nav id="sidebar1" class="sidebar d-flex flex-column flex-shrink-0 p-3 text-white bg-dark">
+      <span class="fs-4 d-flex align-items-center mb-3 mb-md-0 me-md-auto mx-auto text-white text-decoration-none">Channel 1</span>
+      <hr/>
+      <div class="clearfix" id="ui-container"></div>
+      <button class="dismiss btn btn-outline-primary w-100 mt-auto text-center cursor-click">Hide</button>
+    </nav>
+
+    <nav id="sidebar3" class="sidebar d-flex flex-column flex-shrink-0 p-3 text-white bg-dark">
+      <span class="fs-4 d-flex align-items-center mb-3 mb-md-0 me-md-auto mx-auto text-white text-decoration-none">Channel 2</span>
+      <hr/>
+      <div class="clearfix" id="ui-container3"></div>
+      <button class="dismiss btn btn-outline-primary w-100 mt-auto text-center cursor-click">Hide</button>
+    </nav>
+
+    <nav id="sidebar2" class="sidebar d-flex flex-column flex-shrink-0 p-3 text-white bg-dark">
+      <span class="fs-4 d-flex align-items-center mb-3 mb-md-0 me-md-auto mx-auto text-white text-decoration-none">Grid</span>
+      <hr/>
+      <div class="clearfix" id="ui-container2"></div>
+      <button class="dismiss btn btn-outline-light w-100 mt-auto text-center cursor-click">Hide</button>
+    </nav>
+    <!-- End Sidebar-->
+
+    <div id="content" class="w-100 h-100 d-flex flex-column">
+      <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <div class="d-flex">
+            <span class="navbar-brand"><span class="font-emoji">✌</span> CV19 Oscilloscope</span>
+            <button type="button" id="sidebarCollapse1" class="btn btn-primary me-2">
+              <span>Channel 1</span>
+            </button>
+
+            <button type="button" id="sidebarCollapse3" class="btn btn-primary me-2">
+              <span>Channel 2</span>
+            </button>
+
+            <button type="button" id="sidebarCollapse2" class="btn btn-light">
+              <span>Grid</span>
+            </button>
+            </div>
+
+            <div class="text-light ml-auto d-flex align-items-center">
+              <button id="measurementButton" class="btn btn-light me-3">Measurement</button>
+              <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#aboutModal"><span class="font-emoji">💌</span></button>
+            </div>
+        </div>
+      </nav>    
+      <div id="canvas">
+        <div id="measurementToast" class="toast-container position-absolute top-0 end-0 p-3">
+      
+          <!-- Then put toasts within -->
+          <div id="toast1" style="width:auto" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+              <div class="toast-body fw-bold flex-grow-1">
+                <div>
+                  <span class="font-emoji">ΔV</span> = <span id="measurementDeltaV">0</span>
+                </div>
+                <div>
+                  <span class="font-emoji">ΔT</span> = <span id="measurementDeltaT">0</span>
+                </div>
+                <div>
+                  <span>Freq</span> = <span id="measurementFreq">0</span>
+                </div>
+              </div>
+              <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div id="alert1" class="toast position-absolute w-50 top-50 start-50 translate-middle show align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body flex-fill text-center">
+        To use Live Audio Input, please allow access to your browser's microphone when prompted, or check your browser settings.
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="aboutModalLabel">Dear students</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-justify">Oscilloscope is a vital equipment for studying and practicing electrical circuit. We're sorry that we can't send the real scope to you under this COVID19 situation. Thus, we hope that this virtual scope will fulfill the actual functionality of a real scope.</p>
+          <p class="text-justify">The audio used in this app was sampled at <span id="sampling_rate">N/A</span>. The signal might be filtered by the sound card hardware before displaying on the screen.</p>
+          <p class="text-justify">For usability, the shortcut key for measurement is <kbd>M</kbd>. The <kbd>ESC</kbd> is also set to quit the measurement mode.</p>
+          <p class="text-justify">If you want to create your own scope, this app uses WebAudio, <a href="https://github.com/danchitnis/webgl-plot">WebGL</a>, and extends the <a href="https://github.com/edwardball/academo.org/tree/master/demos/virtual-oscilloscope">original code</a> from <a href="https://academo.org/demos/virtual-oscilloscope/">Academo</a>.
+          The source code was released at <a href="#">Github</a>.</p>
+          <br>Regards<br>EGBI223<br>Sep 4, 2021 
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/vendor/modernizr-3.11.2.min.js"></script>
+  <script src="js/vendor/monkeypatch.js"></script>
+  <script src="js/vendor/jquery-3.6.0.min.js"></script>
+  <script src="js/vendor/bootstrap.bundle.min.js"></script>
+  <script src="js/vendor/nouislider.min.js"></script>
+  <script src="js/vendor/webglplot.umd.min.js"></script>
+  <script src="js/vendor/lagrange.js"></script>
+  <!--
+  <script src="js/vendor/jscolor.js"></script>
+  <script>
+  jscolor.presets.default = {
+    format:'rgba'
+  };
+  </script>
+  -->
+  <script src="js/plugins.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/vendor/ui.js"></script>
+</body>
+
+</html>
+<!--
+  https://github.com/edwardball/academo.org/blob/master/demos/virtual-oscilloscope/index.html
+https://create.arduino.cc/projecthub/phpoc_man/arduino-web-oscilloscope-support-trigger-5d6312
+https://github.com/danchitnis/webgl-plot
+-->
