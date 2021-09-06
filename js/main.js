@@ -97,6 +97,8 @@ const generator_interface = [
     'vertOffset', 'vertOffset2'
 ];
 
+const WEBGL_NUM_POINTS_MIN = 800;
+const AUDIO_SAMPLE_RATE = 48000;
 const AuxLines = { cross_1: 0, cross_2: 1, marker1_1: 2, marker1_2: 3, marker2_1: 4, marker2_2: 5, length: 6 }; 
 
 /*
@@ -106,6 +108,8 @@ const AuxLines = { cross_1: 0, cross_2: 1, marker1_1: 2, marker1_2: 3, marker2_1
 parent = document.getElementById('canvas');
 var canvas = document.createElement("canvas"); // for gridlines
 var devicePixelRatio = window.devicePixelRatio || 1;
+canvas.style.width = parent.clientWidth + 'px';
+canvas.style.height = parent.clientHeight + 'px';
 canvas.width = parent.clientWidth * devicePixelRatio;
 canvas.height = parent.clientHeight * devicePixelRatio;
 parent.appendChild(canvas);
@@ -242,11 +246,13 @@ createGrid();
 var AudioContext = (window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.oAudioContext || window.msAudioContext);
 
 if (AudioContext){
-  var audioContext = new AudioContext({latencyHint: 'interactive', sampleRate: 8000});
+  var audioContext = new AudioContext({latencyHint: 'interactive', sampleRate: AUDIO_SAMPLE_RATE});
   var gainNode = audioContext.createGain();
   var analyser = audioContext.createAnalyser();
   gainNode.gain.value = 3;
-  analyser.smoothingTimeConstant = .9;
+  analyser.minDecibels = -90;
+  analyser.maxDecibels = 0;
+  analyser.smoothingTimeConstant = .1;
   try {
     analyser.fftSize = 4096;
   } catch(e) {
@@ -394,6 +400,15 @@ function update(el) {
             };
         } else {
             delete line2.freeze;
+        }
+    } else if (el == 'timeScale') {
+        var full_samples = fullSamples();
+        full_samples = full_samples > WEBGL_NUM_POINTS_MIN ? full_samples : WEBGL_NUM_POINTS_MIN;
+        for(var i=0; i<wglp.linesData.length; i++) {
+            wglp.linesData[i].webglNumPoints = full_samples;
+            wglp.linesData[i].numPoints = full_samples;
+            wglp.linesData[i].xy = new Float32Array(2*full_samples);
+            wglp.linesData[i].arrangeX();
         }
     }
 
@@ -632,6 +647,8 @@ var measurement_data = [];
 
 function webglGetXY(e) {
     const bounding = canvas.getBoundingClientRect();
+    if (e.changedTouches) e = e.changedTouches[0];
+    else if (e.touches) e = e.touches[0];
     const x = (1 / wglp.gScaleX) *
         ((2 * ((e.pageX - bounding.left) * devicePixelRatio - canvas.width / 2)) / canvas.width -
             wglp.gOffsetX);
@@ -681,23 +698,11 @@ function measurementHandler() {
     wglp.update();
 }
 
-$("#measurementButton").click(measurementHandler);
-$(document).keyup(function(e) {
-    switch (e.key) {
-        case 'm':
-        case 'M':
-            measurementHandler();
-            break;
-        case 'Escape':
-            if (is_measurement) {
-                measurementHandler();
-            }
-            break;
-    }
-});
-canvas.addEventListener("click", function (e) {
+function measurementAddMarker(e) {
     if (!is_measurement) return;
+    if (e instanceof PointerEvent) return;
     const xy = webglGetXY(e);
+    const is_touch_event = (e instanceof TouchEvent);
     measurement_data.push(xy);
     if (measurement_data.length >= 2) {
         const d = measurement_data.slice(-2);
@@ -732,17 +737,54 @@ canvas.addEventListener("click", function (e) {
         wglp.linesAux[AuxLines.marker1_1].xy = new Float32Array(cross[0]);
         wglp.linesAux[AuxLines.marker1_2].xy = new Float32Array(cross[1]);
     }
+    if (is_touch_event) {
+        wglp.linesAux[AuxLines.cross_1].visible = false;
+        wglp.linesAux[AuxLines.cross_2].visible = false;
+    }
     wglp.update();
-});
+}
 
-canvas.addEventListener("mousemove", function (e) {
+function measurementDrag(e) {
     if (!is_measurement) return;
     const xy = webglGetXY(e);
     const cross = webglCross(xy.x, xy.y);
     wglp.linesAux[AuxLines.cross_1].xy = new Float32Array(cross[0]);
     wglp.linesAux[AuxLines.cross_2].xy = new Float32Array(cross[1]);
     wglp.update();
+}
+
+function measurementTouchMove(e) {
+    if (!is_measurement) return;
+    const xy = webglGetXY(e);
+    wglp.linesAux[AuxLines.cross_1].xy = new Float32Array([xy.x, -1, xy.x, 1]);
+    wglp.linesAux[AuxLines.cross_2].xy = new Float32Array([-1, xy.y, 1, xy.y]);
+    wglp.linesAux[AuxLines.cross_1].visible = true;
+    wglp.linesAux[AuxLines.cross_2].visible = true;
+    wglp.update();
+}
+
+$("#measurementButton").click(measurementHandler);
+$(document).keyup(function(e) {
+    switch (e.key) {
+        case 'm':
+        case 'M':
+            measurementHandler();
+            break;
+        case 'Escape':
+            if (is_measurement) {
+                measurementHandler();
+            }
+            break;
+    }
 });
+canvas.addEventListener("click", measurementAddMarker);
+canvas.addEventListener("touchend", measurementAddMarker, false);
+canvas.addEventListener("touchcancel", measurementHandler, false);
+canvas.addEventListener("mousemove", measurementDrag);
+canvas.addEventListener("touchmove", measurementTouchMove, false);
+window.addEventListener("orientationchange", function() {
+    location.reload();
+}, false);
 
 // 9. Main program
 // line = channel 1
@@ -750,7 +792,7 @@ canvas.addEventListener("mousemove", function (e) {
 var line_color = colors.teal;
 var line2_color = colors.pink;
 var full_samples = fullSamples();
-full_samples = full_samples > 8000 ? full_samples : 8000; 
+full_samples = full_samples > WEBGL_NUM_POINTS_MIN ? full_samples : WEBGL_NUM_POINTS_MIN; 
 const line = new WebglPlotBundle.WebglLine(line_color, full_samples);
 line.arrangeX();
 wglp.addLine(line);

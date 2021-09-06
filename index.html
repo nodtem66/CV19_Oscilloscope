@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <title>CV19 Oscilloscope</title>
   <meta name="description" content="">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <meta property="og:title" content="">
   <meta property="og:type" content="">
@@ -24,23 +24,23 @@
 </head>
 
 <body class="bg-dark position-relative">
-  <div id="app">
-    <nav id="sidebar1" class="sidebar d-flex flex-column flex-shrink-0 p-3 text-white bg-dark">
-      <span class="fs-4 d-flex align-items-center mb-3 mb-md-0 me-md-auto mx-auto text-white text-decoration-none">Channel 1</span>
+  <div id="app" class="container-fluid p-0">
+    <nav id="sidebar1" class="sidebar d-flex flex-column flex-shrink-0 p-md-3 p-2 text-white bg-dark modal-dialog-scrollable">
+      <span class="fs-4 d-flex align-items-center mb-md-3 me-md-auto mx-auto text-white text-decoration-none">Channel 1</span>
       <hr/>
       <div class="clearfix" id="ui-container"></div>
       <button class="dismiss btn btn-outline-primary w-100 mt-auto text-center cursor-click">Hide</button>
     </nav>
 
-    <nav id="sidebar3" class="sidebar d-flex flex-column flex-shrink-0 p-3 text-white bg-dark">
-      <span class="fs-4 d-flex align-items-center mb-3 mb-md-0 me-md-auto mx-auto text-white text-decoration-none">Channel 2</span>
+    <nav id="sidebar3" class="sidebar d-flex flex-column flex-shrink-0 p-md-3 p-2 text-white bg-dark">
+      <span class="fs-4 d-flex align-items-center mb-md-3 me-md-auto mx-auto text-white text-decoration-none">Channel 2</span>
       <hr/>
       <div class="clearfix" id="ui-container3"></div>
       <button class="dismiss btn btn-outline-primary w-100 mt-auto text-center cursor-click">Hide</button>
     </nav>
 
-    <nav id="sidebar2" class="sidebar d-flex flex-column flex-shrink-0 p-3 text-white bg-dark">
-      <span class="fs-4 d-flex align-items-center mb-3 mb-md-0 me-md-auto mx-auto text-white text-decoration-none">Grid</span>
+    <nav id="sidebar2" class="sidebar d-flex flex-column flex-shrink-0 p-md-3 p-2 text-white bg-dark">
+      <span class="fs-4 d-flex align-items-center mb-md-3 me-md-auto mx-auto text-white text-decoration-none">Grid</span>
       <hr/>
       <div class="clearfix" id="ui-container2"></div>
       <button class="dismiss btn btn-outline-light w-100 mt-auto text-center cursor-click">Hide</button>
@@ -49,7 +49,7 @@
 
     <div id="content" class="w-100 h-100 d-flex flex-column">
       <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
+        <div class="container-fluid px-0 px-md-3">
             <div class="d-flex">
             <span class="navbar-brand"><span class="font-emoji">✌</span> CV19 Oscilloscope</span>
             <button type="button" id="sidebarCollapse1" class="btn btn-primary me-2">
@@ -66,7 +66,7 @@
             </div>
 
             <div class="text-light ml-auto d-flex align-items-center">
-              <button id="measurementButton" class="btn btn-light me-3">Measurement</button>
+              <button id="measurementButton" class="btn btn-light me-md-3">Measurement</button>
               <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#aboutModal"><span class="font-emoji">💌</span></button>
             </div>
         </div>
@@ -116,7 +116,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <p class="text-justify">Oscilloscope is a vital equipment for studying and practicing electrical circuit. We're sorry that we can't send the real scope to you under this COVID19 situation. Thus, we hope that this virtual scope will fulfill the actual functionality of a real scope.</p>
+          <p class="text-justify">Oscilloscope is a vital equipment for studying and practicing electrical circuit. We're sorry that we can't send the real scope to you under this COVID19 situation. Thus, we hope that this virtual scope will fulfill the basic functionality of a real scope.</p>
           <p class="text-justify">The audio used in this app was sampled at <span id="sampling_rate">N/A</span>. The signal might be filtered by the sound card hardware before displaying on the screen.</p>
           <p class="text-justify">For usability, the shortcut key for measurement is <kbd>M</kbd>. The <kbd>ESC</kbd> is also set to quit the measurement mode.</p>
           <p class="text-justify">If you want to create your own scope, this app uses WebAudio, <a href="https://github.com/danchitnis/webgl-plot">WebGL</a>, and extends the <a href="https://github.com/edwardball/academo.org/tree/master/demos/virtual-oscilloscope">original code</a> from <a href="https://academo.org/demos/virtual-oscilloscope/">Academo</a>.
