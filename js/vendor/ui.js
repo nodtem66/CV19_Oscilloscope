@@ -68,65 +68,44 @@ var UI = function(element_id = '#ui-container', ui) {
 				  } else {
 					  sliderInputBoxHTML = "<input class='form-control' type='number' value='"+ui[prop].value+"'>";
 				  }
+ 
+				$(propContainerSelector).append(sliderInputBoxHTML);
 
-				  $(propContainerSelector).append(sliderInputBoxHTML);
-				$(propContainerSelector).append('<div id="'+prop+'-slider" class="mt-3 mb-5"></div>');
-				
-				var slider = $('#'+prop+'-slider')[0];
-				noUiSlider.create(slider, {
-					range: {min: ui[prop].range[0], max: ui[prop].range[1]},
-					start: ui[prop].value,
-					handles: 1,
-					connect: "lower",
-					pips: {
-						mode: 'count',
-						values: 3,
-						density: 4
-					},
-					step: (ui[prop].step) ? ui[prop].step : undefined
-				}).on("slide", function(){
-					var v = parseFloat(this.get());
-					ui[prop].value = v;
-					$('#'+prop+'-interface input').val(v);
-					update(prop);
-				});
+				if (ui[prop].range) {
+					$(propContainerSelector).append('<div id="'+prop+'-slider" class="mt-3 mb-5"></div>');
+					
+					var slider = $('#'+prop+'-slider')[0];
+					noUiSlider.create(slider, {
+						range: {min: ui[prop].range[0], max: ui[prop].range[1]},
+						start: ui[prop].value,
+						handles: 1,
+						connect: "lower",
+						pips: {
+							mode: 'count',
+							values: 3,
+							density: 4
+						},
+						step: (ui[prop].step) ? ui[prop].step : undefined
+					}).on("slide", function(){
+						var v = parseFloat(this.get());
+						ui[prop].value = v;
+						$('#'+prop+'-interface input').val(v);
+						update(prop);
+					});
+					//set color
+					if (ui[prop].color){
+						$('#'+prop+'-interface .noUi-connect').css("background-color", ui[prop].color);
+					}
+				}
 
 				$('#'+prop+'-interface input').change(function(e){
 					var v = parseFloat(e.target.value);
 					if (v && !isNaN(v)) {
-						slider.noUiSlider.set([v]);
+						if (ui[prop].range) slider.noUiSlider.set([v]);
 						ui[prop].value = v;
 						update(prop);
 					}
 				});
-
-
-				//Keyboard increment
-				/*
-				$('#'+prop+'-interface input').keydown(function(e){
-					var value = parseInt(e.target.value);
-					value = isNaN(value) ? 0 : value;
-					var increment = shiftDown ? 10 : 1;
-
-					switch (e.which){
-						case 38:
-							value += increment;
-							break;
-						case 40:
-							value -= increment;
-							break;
-					}
-					$(this).val( value );
-					ui[prop].value = parseFloat(value);
-					slider.noUiSlider.set([value]);
-					update(prop);
-				});
-				*/
-
-				//set color
-				if (ui[prop].color){
-					$('#'+prop+'-interface .noUi-connect').css("background-color", ui[prop].color);
-				}
 
 			} else if (ui[prop].value === true || ui[prop].value === false) {
 
@@ -149,10 +128,18 @@ var UI = function(element_id = '#ui-container', ui) {
 				});
 			} else if ($.isArray(ui[prop].values)){
 				//Dropdown Menus
-				$(propContainerSelector).append("<select class='form-select'></select");
+				$(propContainerSelector).append("<select class='form-select'></select>");
 
 				for (var i  = 0 ; i < ui[prop].values.length ; i++){
-					$('#'+prop+'-interface select').append("<option value='"+ui[prop].values[i][1]+"'>"+ui[prop].values[i][0]+"</option>");
+					var text, val;
+					if (ui[prop].values[i].length) {
+						text = ui[prop].values[i][0];
+						val = ui[prop].values[i][1];
+					} else {
+						val = ui[prop].values[i];
+						text = val;
+					}
+					$('#'+prop+'-interface select').append("<option value='"+val+"'>"+text+"</option>");
 				}
 
 				$('#'+prop+'-interface select option[value="'+ui[prop].value+'"]').prop('selected', true);
