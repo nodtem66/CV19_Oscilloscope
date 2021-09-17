@@ -42,13 +42,13 @@ var ui = {
     },
     serialSampleRate: {
         title: "Sampling rate",
-        value: 1500,
+        value: 1000,
         resolution: 1,
         range: [1, 10000]
     },
     serialMaxValue: {
         title: "Max value of data",
-        value: 255
+        value: 1023
     },
     // Channel 2 UI
     inputType2: {
@@ -198,8 +198,8 @@ const midPoint = {x: canvas.width/2, y: canvas.height/2};
 wglp.custom_update = function() {
     this.clear();
     this.drawLines(this.linesAux);
-    this.drawSurfaces(this.surfaces);
     this.drawLines(this.linesData);
+    this.drawSurfaces(this.surfaces);
 }
 wglp.custom_update();
 
@@ -395,7 +395,16 @@ function addUiData(data=[]) {
 
 // 7.2 Web Serial Section ///////////////////////////////////////////////////////////
 const notSupported = document.getElementById('alert2');
-notSupported.classList.toggle('show', !('serial' in navigator));
+if (!('serial' in navigator)) {
+    notSupported.classList.add('show');
+    setTimeout(function() {
+        notSupported.classList.add('opacity-0');
+        setTimeout(function() {
+            notSupported.classList.remove('opacity-0');
+            notSupported.classList.remove('show');
+        }, 1010);
+    }, 3000);
+}
 
 var MySerial = function() {
     this.port;
@@ -404,7 +413,8 @@ var MySerial = function() {
     this.inputStream;
     this.reader;
     this.keepReading;
-    this.buffer;
+    this.buffer = [];
+    this.bufferLock = false;
     this.baudrate = 115200;
 }
 
@@ -418,9 +428,11 @@ MySerial.prototype.connect = async function(baudrate) {
     this.inputDone = this.port.readable.pipeTo(this.decoder.writable);
     this.inputStream = this.decoder.readable.pipeThrough(new TransformStream(new LineBreakTransformer()));
     this.keepReading = false;
+    this.buffer = [];
 }
 
 MySerial.prototype.disconnect = async function() {
+    if(!this.isConnected()) return;
     if (this.reader) {
         if (this.reader.locked) {
             this.reader.cancel();
@@ -435,18 +447,8 @@ MySerial.prototype.disconnect = async function() {
     }
 }
 
-MySerial.prototype.read = async function(count=10) {
-    this.reader = this.inputStream.getReader();
-    this.buffer = new Uint16Array(count);
-    for(var i=0; i<count; i++) {
-        const {value, done} = await this.reader.read();
-        if (done) break;
-        if (value) {
-            this.buffer[i] = value;
-        }
-    }
-    this.reader.releaseLock();
-    return this.buffer;
+MySerial.prototype.isConnected = function () {
+    return (this.port instanceof SerialPort);
 }
 
 MySerial.prototype.readUntilClosed = async function(count=10) {
@@ -458,19 +460,35 @@ MySerial.prototype.readUntilClosed = async function(count=10) {
             while (true) {
                 const {value, done} = await this.reader.read();
                 if (done) break;
-                this.buffer.shift();
+                if (this.buffer.length >= count)
+                    this.buffer.shift();
+                //while(this.bufferLock);
+                this.bufferLock = true;
                 this.buffer.push(parseFloat(value));
+                this.bufferLock = false;
             }
         } catch (error) {
             console.log(error);
         } finally {
+            this.bufferLock = false;
             this.reader.releaseLock();
         }
     }
     await this.disconnect();
 }
 
+MySerial.prototype.readBuffer = function() {
+    //while(this.bufferLock);
+    if(!this.isConnected()) return [];
+    this.bufferLock = true;
+    var arr = this.buffer.slice(0);
+    this.buffer = [];
+    this.bufferLock = false;
+    return arr;
+}
+
 MySerial.prototype.closeReader = function() {
+    if(!this.isConnected()) return;
     this.keepReading = false;
     if (this.reader) {
         this.reader.cancel();
@@ -509,6 +527,18 @@ function nextPower2(x) {
     return Math.pow(2, Math.ceil(Math.log2(x)));
 }
 
+function adjustWebglLine() {
+    inputTypes = streaming.getInputTypes();
+    for(var i=0; i<wglp.linesData.length; i++) {
+        var full_samples = (inputTypes[i] == 2) ? fullSerialSamples(ui.serialSampleRate.value) : fullAudioSamples();
+        full_samples = full_samples > WEBGL_NUM_POINTS_MIN ? full_samples : WEBGL_NUM_POINTS_MIN;
+        wglp.linesData[i].webglNumPoints = full_samples;
+        wglp.linesData[i].numPoints = full_samples;
+        wglp.linesData[i].xy = new Float32Array(2*full_samples);
+        wglp.linesData[i].arrangeX();
+    }
+}
+
 var my_ports = [new MySerial()];
 var draw_time = Date.now();
 var sampled_time = {audio: 0, serial: 0};
@@ -528,12 +558,15 @@ function animate(){
                 }
             }
             if (streaming.Serial()) {
+                /*
                 var new_samples = sampled_time.serial > 0 ? (Date.now() - sampled_time.serial) * ui.serialSampleRate.value / 1000.0 : numSamples;
                 if (new_samples < numSamples) {
                     if (my_ports[0].buffer) {
                         serial_data = my_ports[0].buffer.slice(-Math.ceil(new_samples));
                     }
                 }
+                */
+               serial_data = my_ports[0].readBuffer();
                 sampled_time.serial = Date.now();
             }
         }
@@ -585,38 +618,35 @@ function update(el) {
             delete line2.freeze;
         }
     } else if (el == 'timeScale') {
-        inputTypes = streaming.getInputTypes();
-        for(var i=0; i<wglp.linesData.length; i++) {
-            var full_samples = (inputTypes[i] == 2) ? fullSerialSamples(ui.serialSampleRate.value) : fullAudioSamples();
-            full_samples = full_samples > WEBGL_NUM_POINTS_MIN ? full_samples : WEBGL_NUM_POINTS_MIN;
-            wglp.linesData[i].webglNumPoints = full_samples;
-            wglp.linesData[i].numPoints = full_samples;
-            wglp.linesData[i].xy = new Float32Array(2*full_samples);
-            wglp.linesData[i].arrangeX();
-        }
+        adjustWebglLine();
     }
 
     if (el == 'inputType') {
         switch (parseInt(ui.inputType.value)) {
             case 0:
                 line.visible = false;
+                line_marker1.visible = false;
+                wglp.linesData[0].visible = false;
                 streaming[0] = false;
                 $('#freq-interface, #freeze-interface, #gain-interface, #vertOffset-interface, #serialBaudRate-interface, #serialSampleRate-interface, #serialMaxValue-interface').hide();
                 break;
             case 1:
                 line.visible = true;
+                line_marker1.visible = true;
                 streaming[0] = true;
                 $('#freeze-interface, #gain-interface, #vertOffset-interface').show();
                 $('#freq-interface, #serialBaudRate-interface, #serialSampleRate-interface, #serialMaxValue-interface').hide();
                 break;
             case 2:
                 line.visible = true;
+                line_marker1.visible = true;
                 streaming[0] = true;
                 $('#freq-interface').hide();
                 $('#freeze-interface, #gain-interface, #vertOffset-interface, #serialBaudRate-interface, #serialSampleRate-interface, #serialMaxValue-interface').show();
                 break;
             default:
                 line.visible = true;
+                line_marker1.visible = true;
                 streaming[0] = false;
                 $('#freq-interface, #gain-interface, #vertOffset-interface').show();
                 $('#freeze-interface, #serialBaudRate-interface, #serialSampleRate-interface, #serialMaxValue-interface').hide();
@@ -624,8 +654,16 @@ function update(el) {
         }
         // If Serial is selected, open the port
         if (parseInt(ui.inputType.value) == 2) {
+            adjustWebglLine();
             my_ports[0].connect(ui.serialBaudRate.value).then(()=>{
-                my_ports[0].readUntilClosed(10000);
+                if (my_ports[0].isConnected()) {     
+                    my_ports[0].readUntilClosed(10000);
+                }
+            }).catch(function() {
+                $('#inputType-interface select').val(0);
+                ui.inputType.value = 0;
+                update('inputType');
+                return;
             });
         } else {
             my_ports[0].closeReader();
@@ -636,17 +674,20 @@ function update(el) {
         switch (parseInt(ui.inputType2.value)) {
             case 0:
                 line2.visible = false;
+                line_marker2.visible = false;
                 streaming[1] = false;
                 $('#freq2-interface, #freeze2-interface, #gain2-interface, #vertOffset2-interface').hide();
                 break;
             case 1:
                 line2.visible = true;
+                line_marker2.visible = true;
                 streaming[1] = true;
                 $('#freq2-interface').hide();
                 $('#freeze2-interface, #gain2-interface, #vertOffset2-interface').show();
                 break;
             default:
                 line2.visible = true;
+                line_marker2.visible = true;
                 streaming[1] = false;
                 $('#freq2-interface, #gain2-interface, #vertOffset2-interface').show();
                 $('#freeze2-interface').hide();
@@ -708,7 +749,7 @@ function updateFreeze(channel) {
     var _line = wglp.linesData[channel];
     if (!_line.freeze) return;
     console.assert(channel < inputType_key.length);
-    if (ui[inputType_key[channel]].value != 1) return;
+    if (ui[inputType_key[channel]].value != 1 && ui[inputType_key[channel]].value != 2) return;
     if (!IsFreezeUpdated(channel)) return;
 
     // Update value from ui
@@ -721,6 +762,7 @@ function updateFreeze(channel) {
         }
     }
     // Replace new points in both X and Y
+    console.log(_line.numPoints);
     for (var i=0; i<_line.numPoints; i++) {
         var y = mapRange([-1, 1], [0, canvas.height], _line.getY(i));
         y += new_freeze.v_offset - _line.freeze.v_offset;
@@ -752,6 +794,7 @@ function drawData(){
     // ui_data is a new data from timeDomain
     if (streaming.Some()){
         if (streaming.Audio()) {
+            // Process the audio data
             var full_samples = fullAudioSamples();
             if (ui_data.length > full_samples) {
                 ui_data = ui_data.slice(-full_samples);
@@ -760,7 +803,9 @@ function drawData(){
             if (full_samples < line.numPoints) {
                 ui_data = upsampling(ui_data, adjust_size);
             }
+            // Draw channel 1 if it's enabled
             if (ui.inputType.value == 1 && streaming.Active(0)) {
+                // Draw data lines
                 var ys = [];
                 for (var i=0; i < ui_data.length; i++) {
                     var y = ui.gain.value * ((ui_data[i] / 255) - 0.5)*200/(ui.volts.value);
@@ -769,6 +814,7 @@ function drawData(){
                 }
                 line.shiftAdd(ys);
             }
+            // Draw channel 2 if it's enabled
             if (ui.inputType2.value == 1 && streaming.Active(1)) {
                 var ys = [];
                 for (var i=0; i < ui_data.length; i++) {
@@ -785,7 +831,7 @@ function drawData(){
                 serial_data = serial_data.slice(-full_samples);
             }
             var adjust_size = serial_data.length * line.numPoints / full_samples;
-            console.log('adj:', adjust_size, 'num_point:', line.numPoints, 'full:', full_samples);
+            //console.log('adj:', adjust_size, 'num_point:', line.numPoints, 'full:', full_samples);
             if (full_samples < line.numPoints) {
                 serial_data = upsampling(serial_data, adjust_size);
             }
@@ -834,7 +880,13 @@ function drawData(){
         }
         generator_refresh = false;
     }
+    // Draw marker
+    line_marker1.xy = new Float32Array(webglTriangleMarker(-0.99, mapRange.ToWebGL.y(ui.vertOffset.value)+1));
+    line_marker2.xy = new Float32Array(webglTriangleMarker(-0.99, mapRange.ToWebGL.y(ui.vertOffset2.value)+1));
+    // Update freezed data
     updateFreeze(0);
+    updateFreeze(1);
+
     wglp.custom_update();
 }
 
@@ -862,6 +914,7 @@ $(document).on("uiLoaded", function(){
 
 // Measurement UI and handlers
 var is_measurement = false;
+var is_touched = false;
 var measurement_data = [];
 
 function webglGetXY(e) {
@@ -880,6 +933,13 @@ function webglCross(x,y) {
     const dx = mapRange.ToWebGL.x(10)+1;
     const dy = mapRange.ToWebGL.y(10)+1;
     return [[x-dx, y+dy, x+dx, y-dy], [x-dx, y-dy, x+dx, y+dy]];
+}
+function webglTriangleMarker(x,y) {
+    const dx = mapRange.ToWebGL.x(10)+1;
+    const dy = mapRange.ToWebGL.y(10)+1;
+    const h = dx;
+    const b = dy/2.0;
+    return [x, y, x-h, y+b, x-h, y-b];
 }
 
 function formatUnit(number, unit='', fixed=3, prefix_unit='') {
@@ -914,19 +974,20 @@ function measurementHandler() {
         }
         $("#measurementButton").text('Cancel');
     }
+    is_touched = false;
     wglp.custom_update();
 }
 
 function measurementAddMarker(e) {
     if (!is_measurement) return;
-    if (e instanceof PointerEvent) return;
     const xy = webglGetXY(e);
-    const is_touch_event = (e instanceof TouchEvent);
+    is_touch_event = (e instanceof TouchEvent);
+    if (is_touched && e instanceof PointerEvent) return;
     measurement_data.push(xy);
     if (measurement_data.length >= 2) {
         const d = measurement_data.slice(-2);
-        var dx = d[1].x - d[0].x;
-        var dy = d[1].y - d[0].y;
+        var dx = d[0].x - d[1].x;
+        var dy = d[0].y - d[1].y;
         // 100 px = 5V * ui.volts.value
         dy = mapRange([0,2], [0,canvas.height], dy)*ui.volts.value*5/100;
         // 100 px = 1ms * ui.timeScale.value
@@ -960,6 +1021,7 @@ function measurementAddMarker(e) {
         wglp.linesAux[AuxLines.cross_1].visible = false;
         wglp.linesAux[AuxLines.cross_2].visible = false;
     }
+    is_touched = is_touch_event;
     wglp.custom_update();
 }
 
@@ -973,7 +1035,9 @@ function measurementDrag(e) {
 }
 
 function measurementTouchMove(e) {
+    e.preventDefault();
     if (!is_measurement) return;
+    is_touched = true;
     const xy = webglGetXY(e);
     wglp.linesAux[AuxLines.cross_1].xy = new Float32Array([xy.x, -1, xy.x, 1]);
     wglp.linesAux[AuxLines.cross_2].xy = new Float32Array([-1, xy.y, 1, xy.y]);
@@ -997,10 +1061,10 @@ $(document).keyup(function(e) {
     }
 });
 canvas.addEventListener("click", measurementAddMarker);
-canvas.addEventListener("touchend", measurementAddMarker, false);
-canvas.addEventListener("touchcancel", measurementHandler, false);
+canvas.addEventListener("touchend", measurementAddMarker, Modernizr.passiveeventlisteners ? {passive: true} : false);
+canvas.addEventListener("touchcancel", measurementHandler, Modernizr.passiveeventlisteners ? {passive: true} : false);
 canvas.addEventListener("mousemove", measurementDrag);
-canvas.addEventListener("touchmove", measurementTouchMove, false);
+canvas.addEventListener("touchmove", measurementTouchMove, Modernizr.passiveeventlisteners ? {passive: true} : false);
 window.addEventListener("orientationchange", function() {
     location.reload();
 }, false);
@@ -1012,14 +1076,22 @@ var line_color = colors.teal;
 var line2_color = colors.pink;
 var full_samples = fullAudioSamples();
 full_samples = full_samples > WEBGL_NUM_POINTS_MIN ? full_samples : WEBGL_NUM_POINTS_MIN; 
+// Channel 1 Line
 const line = new WebglPlotBundle.WebglLine(line_color, full_samples);
 line.arrangeX();
 wglp.addLine(line);
+const line_marker1 = new WebglPlotBundle.WebglLine(line_color, 3);
+line_marker1.xy = new Float32Array(webglTriangleMarker(-0.99, 0));
+wglp.addSurface(line_marker1);
+// Channel 2 Line
 const line2 = new WebglPlotBundle.WebglLine(line2_color, full_samples);
 line2.arrangeX();
 line2.visible = false;
 wglp.addLine(line2);
+const line_marker2 = new WebglPlotBundle.WebglLine(line2_color, 3);
+line_marker2.xy = new Float32Array(webglTriangleMarker(-0.99, 0));
+line_marker2.visible = false;
+wglp.addSurface(line_marker2);
 
 wglp.custom_update();
-
 animate();

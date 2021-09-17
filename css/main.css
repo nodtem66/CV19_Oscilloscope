@@ -75,6 +75,7 @@ html {
   z-index: 9999;
   transition: all 0.3s;
   box-shadow: 3px 0px 3px #000;
+  overflow-y: auto;
 }
 
 .sidebar.active {
@@ -117,6 +118,10 @@ html {
 
 #measurementToast {
   z-index: 9999;
+}
+
+#alert1, #alert2 {
+  transition: all 0.5s ease;
 }
 
 @import "https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700";
