@@ -1054,7 +1054,7 @@ function upsampling(input, to_size, eps=1e-9) {
 	var j=0;
 	for (var i=1; i<N-1; i++) {
 		var l = new Lagrange(i, input[i-1], i+1, input[i]);
-		l.addPoint(i+2, input[i+1]);
+		//l.addPoint(i+2, input[i+1]);
 		for (;xs[j]<=(i+1); j++) {
 			output.push(l.valueOf(xs[j]));
 		}

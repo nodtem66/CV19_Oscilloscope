@@ -762,7 +762,6 @@ function updateFreeze(channel) {
         }
     }
     // Replace new points in both X and Y
-    console.log(_line.numPoints);
     for (var i=0; i<_line.numPoints; i++) {
         var y = mapRange([-1, 1], [0, canvas.height], _line.getY(i));
         y += new_freeze.v_offset - _line.freeze.v_offset;
@@ -1035,7 +1034,6 @@ function measurementDrag(e) {
 }
 
 function measurementTouchMove(e) {
-    e.preventDefault();
     if (!is_measurement) return;
     is_touched = true;
     const xy = webglGetXY(e);
