@@ -1058,7 +1058,7 @@ function upsampling(input, to_size, eps=1e-9) {
 		for (;xs[j]<=(i+1); j++) {
 			output.push(l.valueOf(xs[j]));
 		}
-		if (i==N-2) {
+		if (i==N-1) {
 			for (;xs[j]<=(i+2); j++) {
 				output.push(l.valueOf(xs[j]));
 			}

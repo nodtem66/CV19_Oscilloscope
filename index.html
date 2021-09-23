@@ -29,7 +29,10 @@
       <span class="fs-4 d-flex align-items-center mb-md-3 me-md-auto mx-auto text-white text-decoration-none">Channel 1</span>
       <hr/>
       <div class="clearfix" id="ui-container"></div>
-      <button class="dismiss btn btn-outline-primary w-100 mt-auto text-center cursor-click">Hide</button>
+      <div class="mt-auto">
+        <button class="btn btn-primary w-100 mt-auto text-center cursor-click mb-3" data-channel="0" data-bs-toggle="modal" data-bs-target="#addCollectionModal">Add to collection</button>
+        <button class="dismiss btn btn-outline-primary w-100 mt-auto text-center cursor-click">Hide</button>
+      </div>
     </nav>
 
     <nav id="sidebar3" class="sidebar d-flex flex-column flex-shrink-0 p-md-3 p-2 text-white bg-dark">
@@ -37,6 +40,16 @@
       <hr/>
       <div class="clearfix" id="ui-container3"></div>
       <button class="dismiss btn btn-outline-primary w-100 mt-auto text-center cursor-click">Hide</button>
+    </nav>
+
+    <nav id="sidebar4" class="sidebar d-flex flex-column flex-shrink-0 p-md-3 p-2 text-white bg-dark">
+      <span class="fs-4 d-flex align-items-center mb-md-3 me-md-auto mx-auto text-white text-decoration-none">Collection</span>
+      <hr/>
+      <div class="clearfix" id="ui-container4"></div>
+      <div class="mt-auto">
+        <button id="delete_collection_btn" class="btn btn-danger w-100 mt-auto text-center cursor-click mb-3">Delete</button>
+        <button class="dismiss btn btn-outline-warning w-100 mt-auto text-center cursor-click">Hide</button>
+      </div>
     </nav>
 
     <nav id="sidebar2" class="sidebar d-flex flex-column flex-shrink-0 p-md-3 p-2 text-white bg-dark">
@@ -53,15 +66,20 @@
             <div class="d-flex">
             <span class="navbar-brand"><span class="font-emoji">✌</span> CV19 Oscilloscope</span>
             <button type="button" id="sidebarCollapse1" class="btn btn-primary me-2">
-              <span>Channel 1</span>
+              <span>Input <span class="font-emoji">1️⃣</span></span>
             </button>
 
-            <button type="button" id="sidebarCollapse3" class="btn btn-primary me-2">
+            <button type="button" id="sidebarCollapse3" class="btn btn-primary me-2" style="display:none">
               <span>Channel 2</span>
             </button>
 
+            <button type="button" id="sidebarCollapse4" class="btn btn-warning me-2">
+              <span><span class="font-emoji">🗂</span> Collection</span>
+            </button>
+            </button>
+
             <button type="button" id="sidebarCollapse2" class="btn btn-light">
-              <span>Grid</span>
+              <span><span class="font-emoji">🎚</span> Grid</span>
             </button>
             </div>
 
@@ -116,7 +134,7 @@
     </div>
   </div>
 
-  <!-- Modal -->
+  <!-- About Modal -->
   <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
       <div class="modal-content">
@@ -139,6 +157,33 @@
     </div>
   </div>
 
+  <!-- Add Collection Modal -->
+  <div class="modal fade" id="addCollectionModal" tabindex="-1" aria-labelledby="addCollectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="aboutModalLabel">Add collection</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="collectionName" class="form-label">Collection name</label>
+            <input type="text" class="form-control" id="collectionName" aria-describedby="collectionNameHelp">
+            <div id="collectionNameHelp" class="form-text">Enter the name for displaying</div>
+          </div>
+          <div class="mb-3">
+            <label for="collectionColorName" class="form-label">Color</label>
+            <input class="form-control" id="collectionColor" value="FFFFFF" data-jscolor="{preset:'small dark', position:'right'}">
+            <input type="hidden" id="collectionChannel" value="">
+          </div>
+        <div class="modal-footer">
+          <button id="add_collection_btn" type="button" class="btn btn-primary" data-bs-dismiss="modal">Add</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="js/vendor/modernizr-3.11.2.min.js"></script>
   <script src="js/vendor/monkeypatch.js"></script>
   <script src="js/vendor/jquery-3.6.0.min.js"></script>
@@ -146,8 +191,8 @@
   <script src="js/vendor/nouislider.min.js"></script>
   <script src="js/vendor/webglplot.umd.min.js"></script>
   <script src="js/vendor/lagrange.js"></script>
-  <!--
   <script src="js/vendor/jscolor.js"></script>
+    <!--
   <script>
   jscolor.presets.default = {
     format:'rgba'
@@ -161,7 +206,8 @@
 
 </html>
 <!--
-  https://github.com/edwardball/academo.org/blob/master/demos/virtual-oscilloscope/index.html
+Refs:
+https://github.com/edwardball/academo.org/blob/master/demos/virtual-oscilloscope/index.html
 https://create.arduino.cc/projecthub/phpoc_man/arduino-web-oscilloscope-support-trigger-5d6312
 https://github.com/danchitnis/webgl-plot
 -->

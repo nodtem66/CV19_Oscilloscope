@@ -21,32 +21,6 @@
   }
 }());
 
-// Place any jQuery/helper plugins in here.
-$(document).ready(function () {
-  $('.dismiss, .overlay').on('click', function () {
-      // hide sidebar
-      $('#sidebar1, #sidebar2, #sidebar3').removeClass('active');
-  });
-
-  $('#sidebarCollapse1').on('click', function () {
-      // open sidebar
-      $('#sidebar1').addClass('active');
-      $('#sidebar2, #sidebar3').removeClass('active');
-  });
-
-  $('#sidebarCollapse2').on('click', function () {
-    // open sidebar
-    $('#sidebar2').addClass('active');
-    $('#sidebar1, #sidebar3').removeClass('active');
-  });
-
-  $('#sidebarCollapse3').on('click', function () {
-    // open sidebar
-    $('#sidebar3').addClass('active');
-    $('#sidebar1, #sidebar2').removeClass('active');
-  });
-});
-
 (function() {
   var lastTime = 0;
   var vendors = ['webkit', 'moz'];

@@ -47,7 +47,7 @@ var ui = {
         range: [1, 10000]
     },
     serialMaxValue: {
-        title: "Max value of data",
+        title: "Value of 5V",
         value: 1023
     },
     // Channel 2 UI
@@ -93,9 +93,9 @@ var ui = {
     // Horizontal Grid UI
     timeScale: {
         title: "Seconds / div",
-        value: 1,
+        value: 10,
         parent: '#ui-container2',
-        values: [["50 µs", 0.05],["100 µs", 0.1],["200 µs", 0.2],["500 µs", 0.5],["1 ms", 1], ["2 ms", 2],["5 ms", 5], ["10ms", 10], ["50ms", 50], ["100ms", 100], ["500ms", 500], ["1s", 1000]]
+        values: [["50 µs", 0.05],["100 µs", 0.1],["200 µs", 0.2],["500 µs", 0.5],["1 ms", 1], ["2 ms", 2],["5 ms", 5], ["7.5 ms", 7.5], ["10 ms", 10], ["25 ms", 25], ["50 ms", 50], ["100 ms", 100], ["500 ms", 500], ["1 s", 1000]]
     },
     volts: {
         title: "Volts / div",
@@ -111,11 +111,42 @@ var ui = {
         color: "#999",
         parent: '#ui-container2',
         input: "hidden"
+    },
+    // Collection UI
+    collectionSource: {
+        title: "Collection",
+        value: 0,
+        values: [["None", 0]],
+        parent: '#ui-container4'
+    },
+    collectionShow: {
+        title: 'Show',
+        parent: "#ui-container4",
+        color: '#ffc720',
+        value: false
+    },
+    collectionGain: {
+        title: "Gain",
+        value: 1,
+        range:[0,5],
+        resolution:0.1,
+        color: '#ffc720',
+        parent: '#ui-container4'
+    },
+    collectionVertOffset: {
+        title: "Vertical Offset",
+        value: 0,
+        range:[-1000,1000],
+        resolution: 1,
+        input: "hidden",
+        color: '#ffc720',
+        parent: '#ui-container4'
     }
 };
 
 var ui_data = [];
 var serial_data = [];
+var collection_data = [];
 const generator_interface = [
     'timeScale', 'horizOffset',
     'inputType', 'inputType2',
@@ -312,12 +343,12 @@ var fullSampledTime = function() {
 
 // unit samples
 var fullAudioSamples = function() {
-    return fullSampledTime()*sampleRate;
+    return Math.ceil(fullSampledTime()*sampleRate);
 }
 
 // unit samples
 var fullSerialSamples = function(serialSampleRate) {
-    return fullSampledTime()*serialSampleRate;
+    return Math.ceil(fullSampledTime()*serialSampleRate);
 }
 
 var animateId;
@@ -464,7 +495,10 @@ MySerial.prototype.readUntilClosed = async function(count=10) {
                     this.buffer.shift();
                 //while(this.bufferLock);
                 this.bufferLock = true;
-                this.buffer.push(parseFloat(value));
+                var x = parseFloat(value);
+                if (isNumber(x)) {
+                    this.buffer.push(x);
+                }
                 this.bufferLock = false;
             }
         } catch (error) {
@@ -531,7 +565,6 @@ function adjustWebglLine() {
     inputTypes = streaming.getInputTypes();
     for(var i=0; i<wglp.linesData.length; i++) {
         var full_samples = (inputTypes[i] == 2) ? fullSerialSamples(ui.serialSampleRate.value) : fullAudioSamples();
-        full_samples = full_samples > WEBGL_NUM_POINTS_MIN ? full_samples : WEBGL_NUM_POINTS_MIN;
         wglp.linesData[i].webglNumPoints = full_samples;
         wglp.linesData[i].numPoints = full_samples;
         wglp.linesData[i].xy = new Float32Array(2*full_samples);
@@ -545,7 +578,7 @@ var sampled_time = {audio: 0, serial: 0};
 function animate(){
     var now = Date.now();
     // Fixed to 60 frames per seconds (1s/60 = 16.667ms)
-    if (now - draw_time >= 1000.0/50) {
+    if (now - draw_time >= 1000.0/60) {
         if (streaming.SomeActive()){
             if (streaming.Audio()) {
                 var new_samples = sampled_time.audio > 0 ? (Date.now() - sampled_time.audio) * sampleRate / 1000.0 : numSamples;
@@ -558,16 +591,8 @@ function animate(){
                 }
             }
             if (streaming.Serial()) {
-                /*
-                var new_samples = sampled_time.serial > 0 ? (Date.now() - sampled_time.serial) * ui.serialSampleRate.value / 1000.0 : numSamples;
-                if (new_samples < numSamples) {
-                    if (my_ports[0].buffer) {
-                        serial_data = my_ports[0].buffer.slice(-Math.ceil(new_samples));
-                    }
-                }
-                */
                serial_data = my_ports[0].readBuffer();
-                sampled_time.serial = Date.now();
+               sampled_time.serial = Date.now();
             }
         }
         drawData();
@@ -617,8 +642,46 @@ function update(el) {
         } else {
             delete line2.freeze;
         }
+    } else if (el == 'volts') {
+        for (var i=0; i<collection_data.length; i++) {
+            drawCollection(i);
+        }
     } else if (el == 'timeScale') {
         adjustWebglLine();
+        for (var i=0; i<collection_data.length; i++) {
+            drawCollection(i);
+        }
+    } else if (el == 'serialSampleRate') {
+        adjustWebglLine();
+    } else if (el == 'collectionSource') {
+        if (ui.collectionSource.value > collection_data.length) return;
+        if (ui.collectionSource.value > 0) {
+            var collection = collection_data[ui.collectionSource.value - 1];
+            $('#collectionShow-interface input').prop('checked', collection.show);
+            $('#collectionGain-interface').val(collection.gain);
+            $('#collectionVertOffset-interface').val(collection.vertOffset);
+            $('#collectionShow-interface, #collectionGain-interface, #collectionVertOffset-interface, #delete_collection_btn').show();
+        } else {
+            $('#collectionShow-interface, #collectionGain-interface, #collectionVertOffset-interface, #delete_collection_btn').hide();
+        }
+    } else if (el == 'collectionShow') {
+        if (ui.collectionSource.value > collection_data.length) return;
+        var c = collection_data[ui.collectionSource.value - 1];
+        c.show = ui.collectionShow.value;
+        const line_index = c.line_index;
+        const marker_index = c.marker_index;
+        wglp.linesAux[line_index].visible = c.show;
+        wglp.surfaces[marker_index].visible = c.show;
+    } else if (el == 'collectionGain') {
+        if (ui.collectionSource.value > collection_data.length) return;
+        var c = collection_data[ui.collectionSource.value - 1];
+        c.gain = ui.collectionGain.value;
+        drawCollection(ui.collectionSource.value - 1);
+    } else if (el == 'collectionVertOffset') {
+        if (ui.collectionSource.value > collection_data.length) return;
+        var c = collection_data[ui.collectionSource.value - 1];
+        c.vertOffset = ui.collectionVertOffset.value;
+        drawCollection(ui.collectionSource.value - 1);
     }
 
     if (el == 'inputType') {
@@ -830,10 +893,10 @@ function drawData(){
                 serial_data = serial_data.slice(-full_samples);
             }
             var adjust_size = serial_data.length * line.numPoints / full_samples;
-            //console.log('adj:', adjust_size, 'num_point:', line.numPoints, 'full:', full_samples);
+            /*
             if (full_samples < line.numPoints) {
                 serial_data = upsampling(serial_data, adjust_size);
-            }
+            }*/
             if (ui.inputType.value == 2 && streaming.Active(0)) {
                 var ys = [];
                 for (var i=0; i < serial_data.length; i++) {
@@ -889,29 +952,7 @@ function drawData(){
     wglp.custom_update();
 }
 
-// 8. Events
-$(document).on("uiLoaded", function(){
-    if (navigator.mediaDevices){
-        navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-          .then(function(stream) {
-            /* use the stream */
-            gotStream(stream);
-            $("#alert1").removeClass("show");
-          })
-          .catch(function(err) {
-            /* handle the error */
-            console.log(err);
-          });
-    } else {
-        animate();
-        $("#alert1").addClass("show");
-    };
-
-    // The default inputType for channel 2 is Off then hide the generator interface 
-    $('#freq2-interface, #freeze2-interface, #gain2-interface, #vertOffset2-interface').hide();
-});
-
-// Measurement UI and handlers
+// 8. Measurement UI and handlers
 var is_measurement = false;
 var is_touched = false;
 var measurement_data = [];
@@ -985,7 +1026,7 @@ function measurementAddMarker(e) {
     measurement_data.push(xy);
     if (measurement_data.length >= 2) {
         const d = measurement_data.slice(-2);
-        var dx = d[0].x - d[1].x;
+        var dx = d[1].x - d[0].x;
         var dy = d[0].y - d[1].y;
         // 100 px = 5V * ui.volts.value
         dy = mapRange([0,2], [0,canvas.height], dy)*ui.volts.value*5/100;
@@ -993,7 +1034,7 @@ function measurementAddMarker(e) {
         dx = mapRange([0,2], [0,canvas.width], dx)*ui.timeScale.value/1000/100;
         $('#measurementDeltaV').text(formatUnit(dy, 'V'));
         $('#measurementDeltaT').text(formatUnit(dx, 's'));
-        $('#measurementFreq').text(formatUnit(1/dx, 'Hz'));
+        $('#measurementFreq').text(formatUnit(Math.abs(1/dx), 'Hz'));
         $('#toast1').addClass('show');
         // update markers        
         var marker = webglCross(d[0].x, d[0].y);
@@ -1067,13 +1108,208 @@ window.addEventListener("orientationchange", function() {
     location.reload();
 }, false);
 
-// 9. Main program
-// line = channel 1
-// line2 = channel 2
+// 9. Collection UI
+$('[data-bs-target="#addCollectionModal"]').click(function (){
+    const channel = $(this).attr("data-channel");
+    $("#collectionName").val("");
+    $("#collectionChannel").val(channel);
+});
+
+$('#add_collection_btn').click(function () {
+    const channel = $("#collectionChannel").val();
+    const name = $("#collectionName").val() || ('ch'+(channel+1)+'_'+Math.ceil(Date.now()/1000));
+    const color = $("#collectionColor").val();
+    //console.log(channel, name, color, colors.fromHex(color));
+    if (!wglp) return;
+    console.assert(wglp.linesData[channel]);
+    addCollection(
+        wglp.linesData[channel],
+        wglp.surfaces[channel],
+        {
+            name: name,
+            show: true,
+            gain: ui.gain.value,
+            offset: ui.vertOffset.value,
+            color: colors.fromHex(color),
+            inputType: ui.inputType.value
+        }
+    );
+});
+
+$('#delete_collection_btn').click(function() {
+    const index = ui.collectionSource.value - 1;
+    if (index < 0 || index >= collection_data.length) return;
+    const collection = collection_data[index];
+    collection_data[index].deleted = true;
+    collection_data[index].show = false;
+    wglp.linesAux[collection.line_index].visible = false;
+    wglp.linesAux[collection.line_index].xy = null;
+    wglp.surfaces[collection.marker_index].visible = null;
+    wglp.surfaces[collection.marker_index].xy = null;
+
+    $('#collectionSource-interface select').val(0);
+    $('#collectionSource-interface select').children().eq(index+1).remove();
+    $('#collectionGain-interface, #collectionVertOffset-interface, #collectionShow-interface, #delete_collection_btn').hide();
+});
+
+// Add XY data from line to the collection
+function addCollection(line, marker, params) {
+    var original_xy = line.xy.slice(0);
+    for (var i=0; i<original_xy.length; i++) {
+        if (i % 2) {
+            var y = mapRange([-1, 1], [0, canvas.height], original_xy[i]);
+            y -= params.offset + (canvas.height/2);
+            if (params.inputType == 2) {
+                y /= params.gain / ui.serialMaxValue.value * 100 / ui.volts.value;
+            } else if (params.inputType == 1) {
+                y /= params.gain * 200 / ui.volts.value;
+                y += 0.5;
+                y *= 255;
+            } else {
+                y /= params.gain;
+            }
+            original_xy[i] = y;
+        }
+    }
+    collection_data.push({
+        line_index: wglp.linesAux.length,
+        marker_index: wglp.surfaces.length,
+        deleted: false,
+        xy: original_xy,
+        name: params.name,
+        show: params.show,
+        gain: params.gain,
+        color: params.color,
+        inputType: params.inputType,
+        vertOffset: params.offset
+    });
+    // Add line
+    const _line = new WebglPlotBundle.WebglLine(params.color, original_xy.length/2);
+    _line.xy = line.xy.slice(0);
+    _line.visible = params.show;
+    wglp.addAuxLine(_line);
+    // Add marker
+    const _marker = new WebglPlotBundle.WebglLine(params.color, 3);
+    _marker.xy = marker.xy.slice(0);
+    wglp.addSurface(_marker);
+    // Add option box
+    ui.collectionSource.values.push([params.name, collection_data.length]);
+    $('#collectionSource-interface select').append("<option value='"+(collection_data.length)+"'>"+(params.name)+"</option>")
+}
+
+function drawCollection(index) {
+    if (index >= collection_data.length) return;
+    var collection = collection_data[index];
+    if (collection.deleted) return;
+    var xy = collection.xy.slice(0);
+    for (var i=0; i<xy.length; i++) {
+        if (i % 2) {
+            if (collection.inputType == 2) {
+                var y = collection.gain * (xy[i] / ui.serialMaxValue.value)*100/(ui.volts.value);
+                y += canvas.height/2;
+                y = mapRange.ToWebGL.y(y + collection.vertOffset);
+            } else if (collection.inputType == 1) {
+                var y = collection.gain * ((xy[i] / 255) - 0.5)*200/(ui.volts.value);
+                y += canvas.height/2;
+                y = mapRange.ToWebGL.y(y + collection.vertOffset);
+            } else {
+                y = collection.gain*xy[i] + canvas.height/2;
+                y = mapRange.ToWebGL.y(y + collection.vertOffset);
+            }
+            xy[i] = y;
+        } 
+    }
+
+    const full_samples = (collection.inputType == 2) ? fullSerialSamples(ui.serialSampleRate.value) : fullAudioSamples();
+    if (wglp.linesAux[collection.line_index].numPoints != full_samples) {
+        wglp.linesAux[collection.line_index] = new WebglPlotBundle.WebglLine(collection.color, full_samples);
+    }
+    if (xy.length == full_samples * 2) {
+        wglp.linesAux[collection.line_index].xy = xy;
+    } else {
+        if (xy.length > full_samples * 2) {
+            wglp.linesAux[collection.line_index].xy = xy.slice(-full_samples*2);
+        } else {
+            wglp.linesAux[collection.line_index].xy = new Float32Array(full_samples*2);
+            const duplicates = Math.ceil(full_samples * 2 / xy.length);
+            for (var i=0; i<duplicates; i++) {
+                wglp.linesAux[collection.line_index].xy.set(
+                    i < duplicates - 1 ? xy : xy.slice(-(2*full_samples-i*xy.length)), // Array to set
+                    i*xy.length // target index to insert
+                );
+            }
+        }
+    }
+    wglp.linesAux[collection.line_index].arrangeX();
+    wglp.surfaces[collection.marker_index].xy = new Float32Array(webglTriangleMarker(-0.99, mapRange.ToWebGL.y(collection.vertOffset)+1));
+}
+
+// 10. Events
+$(document).on("uiLoaded", function(){
+    if (navigator.mediaDevices){
+        navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+          .then(function(stream) {
+            /* use the stream */
+            gotStream(stream);
+            $("#alert1").removeClass("show");
+          })
+          .catch(function(err) {
+            /* handle the error */
+            console.log(err);
+          });
+    } else {
+        animate();
+        $("#alert1").addClass("show");
+    };
+
+    // The default inputType for channel 2 is Off then hide the generator interface 
+    $('#freq2-interface, #freeze2-interface, #gain2-interface, #vertOffset2-interface').hide();
+    $('#collectionShow-interface, #collectionGain-interface, #collectionVertOffset-interface, #delete_collection_btn').hide();
+
+    // Click event
+    $('.dismiss, .overlay').on('click', function () {
+        // hide sidebar
+        $('#sidebar1, #sidebar2, #sidebar3, #sidebar4').removeClass('active');
+        if (is_measurement) measurementHandler();
+    });
+  
+    $('#sidebarCollapse1').on('click', function () {
+        // open sidebar
+        $('#sidebar1').addClass('active');
+        $('#sidebar2, #sidebar3, #sidebar4').removeClass('active');
+        if (is_measurement) measurementHandler();
+    });
+  
+    $('#sidebarCollapse2').on('click', function () {
+      // open sidebar
+      $('#sidebar2').addClass('active');
+      $('#sidebar1, #sidebar3, #sidebar4').removeClass('active');
+      if (is_measurement) measurementHandler();
+    });
+  
+    $('#sidebarCollapse3').on('click', function () {
+      // open sidebar
+      $('#sidebar3').addClass('active');
+      $('#sidebar1, #sidebar2, #sidebar4').removeClass('active');
+      if (is_measurement) measurementHandler();
+    });
+  
+    $('#sidebarCollapse4').on('click', function () {
+      // open sidebar
+      $('#sidebar4').addClass('active');
+      $('#sidebar1, #sidebar2, #sidebar3').removeClass('active');
+      if (is_measurement) measurementHandler();
+    });
+});
+
+/* 11. Main program
+ * line = channel 1
+ * line2 = channel 2
+ */
 var line_color = colors.teal;
 var line2_color = colors.pink;
 var full_samples = fullAudioSamples();
-full_samples = full_samples > WEBGL_NUM_POINTS_MIN ? full_samples : WEBGL_NUM_POINTS_MIN; 
+//full_samples = full_samples > WEBGL_NUM_POINTS_MIN ? full_samples : WEBGL_NUM_POINTS_MIN; 
 // Channel 1 Line
 const line = new WebglPlotBundle.WebglLine(line_color, full_samples);
 line.arrangeX();
