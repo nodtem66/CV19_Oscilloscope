@@ -13,7 +13,7 @@ Inspired by [Academo](https://academo.org/demos/virtual-oscilloscope/).
 ## Arduino and WebSerial
 It's possible to use Arduino and Webserial to probe the low-frequency signal. The 100Hz square wave was generated from TimerOne library and used to find the exact sampling rate for this virtual scope by adjusting the value until the measured frequency is correct.
 
-[PWM_100Hz.ino](./blob/main/examples/PWM_100Hz.ino) contains the source code for used with this method.
+[PWM_100Hz.ino](./examples/PWM_100Hz.ino) contains the source code for used with this method.
 
 - Upload this source code to the target microcontroller.
 - Open virtual oscilloscope, and set the sampling rate to 750.
@@ -22,6 +22,6 @@ It's possible to use Arduino and Webserial to probe the low-frequency signal. Th
 
 ## Screenshot
 
-![Screenshot1](./blob/main/img/screenshot_1.jpg?raw=true)
+![Screenshot1](./img/screenshot_1.jpg?raw=true)
 
-![Screenshot2](./blob/main/img/screenshot_2.jpg?raw=true)
+![Screenshot2](./img/screenshot_2.jpg?raw=true)
